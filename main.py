@@ -41,7 +41,6 @@ df_tweets = pd.DataFrame(rows_dict)
 
 # clean
 df_tweets = util.process_df(df_tweets, lang_map)
-
 # insert artificial row with inivalid language code
 # df_tweets.loc[df_tweets.shape[0]] = ['temp', 'zz', {
 #     'type': 'Point', 'coordinates': [151.211, 33]}]
@@ -56,39 +55,32 @@ unmathced = util.count_unmatched(df_tweets)
 # KEEP THE DF NAME THE SAME FOR CONVENIENCE (tweets_with_cells) (doesn't really matter)
 # also handy to keep 'cells_id' column name the same.
 
+#######
+# I have resolved the boundary issues by using the geopandas approach. There are some if-else statements that
+# are involved in the end that I could not get rid of. Everything is same as it was before. The subset of
+# the tweets which are not resolved by sjoin will go through a for loop and if-else statemnts to get resolved
+# according to the rules mentioned in assignment. This way only the tweets which are on the boundary will go
+# through the for loop and if-else statements.
+
+# Also grid id are appended to the original df_tweets in a way.
+
 # tweet-grid matching
 with open('./data/sydGrid.json', 'r', encoding='utf-8') as f:
     syd_grid = json.load(f)
 
-syd_grid_coorindates = []
-syd_grid_id = []
-for features in syd_grid['features']:
-    poly = Polygon(features['geometry']['coordinates'][0])
-    syd_grid_coorindates += [poly]
-    syd_grid_id.append(features['properties']['id'])
+df_tweets = util.matching_grid(df_tweets,syd_grid)
 
-geodata = gpd.GeoDataFrame()
-geodata['cells_id'] = syd_grid_id
-geodata['geometry'] = syd_grid_coorindates
-coords = [Point(xy) for xy in df_tweets['coordinates']]
-gdf_locations = gpd.GeoDataFrame(df_tweets, geometry=coords)
-# that requires rtree or pygeos package and can be installed using pip. rtree is not working for some reason, pygeos
-# work but gives out compatibility issues warnings with shapely packge. On windows, shapely was installed
-# indepenedenly to install geopandas. In linux env geopandas and all its dependencies will be installed using either
-# conda and pip and therefore this compatibility issue will be resolved. for more information, visit
-# https://github.com/geopandas/geopandas/issues/2355
-tweets_with_cells = gpd.sjoin(
-    gdf_locations, geodata, how='left', predicate='within')
-tweets_with_cells = tweets_with_cells.dropna(subset=['cells_id'])
+
+
 ############################################################
 
 
 # final formatting
 # count # of languages in each cell
-df_total_tweets = util.count_total_tweets(tweets_with_cells)
+df_total_tweets = util.count_total_tweets(df_tweets)
 
 # count # of occurences for each language in each cell
-df_language_counts = util.count_language_counts(tweets_with_cells)
+df_language_counts = util.count_language_counts(df_tweets)
 
 # flatten language counts for each cell
 lang_counts = util.flatten_language_counts(df_language_counts)
