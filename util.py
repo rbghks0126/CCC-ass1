@@ -122,13 +122,17 @@ def matching_grid(df,grid):
                 cells_id_location_list.append(cells_id_location.iloc[0][0])
         if len(cells_id_location_list) == 1:
             cells = cells_id_location_list[0]
+            tweets_with_cells.loc[index,'cells_id']=cells
         elif len(cells_id_location_list) == 2:
             if abs(cells_id_location_list[0]-cells_id_location_list[1]) == 4:
                 cells=min(cells_id_location_list)
+            elif abs(cells_id_location_list[0]-cells_id_location_list[1]) == 1:
+                cells=max(cells_id_location_list)
+            tweets_with_cells.loc[index,'cells_id']=cells
         elif len(cells_id_location_list) == 4:
             temp_cell=cells_id_location_list.sort()
             cells=temp_cell[1]
-        tweets_with_cells.loc[index,'cells_id']=cells
+            tweets_with_cells.loc[index,'cells_id']=cells
     tweets_with_cells = tweets_with_cells.dropna(subset=['cells_id'])
     df = tweets_with_cells[['tweet_id','language','coordinates','cells_id']]
     return(df)
