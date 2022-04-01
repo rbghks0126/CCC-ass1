@@ -97,10 +97,14 @@ def matching_grid(df,grid):
         poly = Polygon(features['geometry']['coordinates'][0])
         syd_grid_coorindates += [poly]
         syd_grid_id.append(features['properties']['id'])
+    #changing the IDs to the alphabetical notation as per the desired output.
+    # I have hard-coded this, because all the possible implementation seems very hardcoded to me.
+    alpha_grid_id = ['C4','B4','A4','D3','C3','B3','A3','D2','C2','B2','A2','D1','C1','B1','A1','D4']
 
     geodata = gpd.GeoDataFrame()
-    geodata['cells_id'] = syd_grid_id
+    geodata['cells_id_numeric'] = syd_grid_id
     geodata['geometry'] = syd_grid_coorindates
+    geodata['cells_id'] = alpha_grid_id
     coords = [Point(xy) for xy in df['coordinates']]
     gdf_locations = gpd.GeoDataFrame(df, geometry=coords)
     # that requires rtree or pygeos package and can be installed using pip. rtree is not working for some reason, pygeos
@@ -111,28 +115,32 @@ def matching_grid(df,grid):
     tweets_with_cells = gpd.sjoin(
         gdf_locations, geodata, how='left', predicate='within')
     no_match_df = tweets_with_cells.loc[tweets_with_cells.index_right.isna()]
-
     for index in no_match_df.index:
         cells_id_location_list = []
+        #alpha_cells_id_location_list=[]
         cells = 0
         no_match_cell= no_match_df['geometry'].loc[index]
         for geocoord in geodata['geometry']:
             if geocoord.intersects(no_match_cell) == True:
                 cells_id_location=geodata.loc[geodata['geometry'] == geocoord]
                 cells_id_location_list.append(cells_id_location.iloc[0][0])
+                #alpha_cells_id_location_list.append(cells_id_location.iloc[0][2])
         if len(cells_id_location_list) == 1:
             cells = cells_id_location_list[0]
-            tweets_with_cells.loc[index,'cells_id']=cells
+            tweets_with_cells.loc[index,'cells_id_numeric']=cells
+            tweets_with_cells.loc[index, 'cells_id']=geodata[geodata['cells_id_numeric']==cells]['cells_id'].values[0]
         elif len(cells_id_location_list) == 2:
             if abs(cells_id_location_list[0]-cells_id_location_list[1]) == 4:
                 cells=min(cells_id_location_list)
             elif abs(cells_id_location_list[0]-cells_id_location_list[1]) == 1:
                 cells=max(cells_id_location_list)
-            tweets_with_cells.loc[index,'cells_id']=cells
+            tweets_with_cells.loc[index,'cells_id_numeric']=cells
+            tweets_with_cells.loc[index, 'cells_id']=geodata[geodata['cells_id_numeric']==cells]['cells_id'].values[0]
         elif len(cells_id_location_list) == 4:
             temp_cell=cells_id_location_list.sort()
             cells=temp_cell[1]
-            tweets_with_cells.loc[index,'cells_id']=cells
-    tweets_with_cells = tweets_with_cells.dropna(subset=['cells_id'])
-    df = tweets_with_cells[['tweet_id','language','coordinates','cells_id']]
+            tweets_with_cells.loc[index,'cells_id_numeric']=cells
+            tweets_with_cells.loc[index, 'cells_id']=geodata[geodata['cells_id_numeric']==cells]['cells_id'].values[0]
+    tweets_with_cells = tweets_with_cells.dropna(subset=['cells_id_numeric'])
+    df = tweets_with_cells[['tweet_id','language','coordinates','cells_id','cells_id_numeric']]
     return(df)
