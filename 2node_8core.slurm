@@ -4,7 +4,7 @@
 #SBATCH --output=2node_8core_out.txt
 #SBATCH --time=0-1:00:00
 #SBATCH --account=COMP90024
-#SBATCH --job-name=twitter_1n8c
+#SBATCH --job-name=twitter_2n8c
 #SBATCH --nodes=2
 #SBATCH --ntasks-per-node=4
 
