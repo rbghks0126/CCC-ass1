@@ -9,12 +9,10 @@
 #SBATCH --ntasks-per-node=4
 
 
-cd /home/$USER/COMP90024/slurm
-
 echo ' '
 echo 'RUN: 2 node,  4 cores each'
 
 module load foss/2020b
 module load scipy-bundle/2020.11-python-3.8.6
 
-mpirun python3 helloworld.py
+mpirun python3 main.py
