@@ -5,17 +5,46 @@ import json
 import pandas as pd
 import ijson
 import util
+import os
+from mpi4py import MPI
 
+COMM = MPI.COMM_WORLD
+process_size = COMM.Get_size()
+process_rank = COMM.Get_rank()
 # time
-start_time = time.time()
-twitter_rows = []
-with open('./smallTwitter.json', 'r', encoding='utf-8') as f:
-    twitter_data_rows=ijson.items(f,'total_rows')
-    twitter_rows = [x for x in twitter_data_rows]
+if process_rank == 0:
+    start_time = time.time()
+
+twitter_rows = 0
+twitter_data_file= open('./data/smallTwitter.json', 'r', encoding='utf-8')
+chunk_sizes = []
+if process_rank == 0:
+    file_size= os.path.getsize('./data/smallTwitter.json')
+    per_process = file_size/process_size
+    twitter_data_rows=twitter_data_file.readline()
+    if ',"rows":[\n' in twitter_data_rows:
+        twitter_data_rows = twitter_data_rows.rstrip(',"rows":[\n')
+        twitter_data_rows = twitter_data_rows+'}'
+        twitter_data_rows = json.loads(twitter_data_rows)
+        twitter_rows = int(twitter_data_rows['total_rows'])
+        if 'offset' in twitter_data_rows:
+            twitter_rows = twitter_rows + int(twitter_data_rows['offset'])
+        #twitter_data_rows=ijson.items(f,'total_rows')
+        #twitter_rows = [x for x in twitter_data_rows]
+    for index in range(process_size):
+        startindex = twitter_data_file.tell()
+        twitter_data_file.seek(startindex+per_process)
+        twitter_data_file.readline()
+        endindex=twitter_data_file.tell()
+        if endindex > file_size:
+            endindex=file_size
+        chunk_sizes.append({'startindex':startindex,'endindex':endindex})
+        twitter_data_file.readline()
+
 
 # loading all the files here.
-twitter_data_file = open('./smallTwitter.json', 'r', encoding='utf-8')
-twitter_data_file_json = ijson.items(twitter_data_file,'rows.item')
+#twitter_data_file = open('./smallTwitter.json', 'r', encoding='utf-8')
+#twitter_data_file_json = ijson.items(twitter_data_file,'rows.item')
 
 # https://datahub.io/core/language-codes
 
@@ -25,17 +54,31 @@ lang_map = util.get_language_code_map('./data/language-codes_csv.csv')
 with open('./data/sydGrid.json', 'r', encoding='utf-8') as f:
     syd_grid = json.load(f)
 
-chunk = 0
+COMM.Barrier()
+chunk_sizes=COMM.scatter(chunk_sizes,root=0)
 collective_df_tweets = pd.DataFrame()
-while chunk < 5:
+
+startindex = chunk_sizes['startindex']
+endindex = chunk_sizes['endindex']
+print("start index is ", startindex)
+print("end index is", endindex)
+twitter_data_file.seek(startindex)
+while twitter_data_file.tell() < endindex:
     count = 0
     tweet_data = []
-    for tweet in twitter_data_file_json:
-        tweet_data.append(tweet)
-        if count == 1000:
+    print ('startindex is ', startindex, 'and the end index is ', endindex)
+    while count < 1000:
+        tweet=twitter_data_file.readline()
+        #print(tweet)
+        if tweet[-3:] == ']}\n' or tweet=="":
+            tweet= tweet.rstrip(']}\n')
             break
         else:
-            count += 1
+            tweet = tweet.rstrip(',\n')
+        #print(tweet)
+        tweet_data_json = json.loads(tweet)
+        tweet_data.append(tweet_data_json)
+        count+=1
 
     #########################################
     # TO BE FILLED IN / REPLACED WITH STREAM/CHUNK PROCESSING?
@@ -91,30 +134,30 @@ while chunk < 5:
 
 
     df_tweets = util.matching_grid(df_tweets,syd_grid)
-    collective_df_tweets=collective_df_tweets.append(df_tweets, ignore_index=True)
-    chunk +=1
+    collective_df_tweets=pd.concat([collective_df_tweets,df_tweets], ignore_index=True)
+    #chunk +=1
+print ('results from the process', process_rank, 'are\n ', collective_df_tweets.to_string() )
+results_from_process = COMM.gather(collective_df_tweets,root=0)
 
 
+if process_rank == 0:
+    for result in results_from_process:
+        collective_df_tweets = pd.concat([collective_df_tweets,result], ignore_index=True)
+    boolean = collective_df_tweets.duplicated(subset=['tweet_id'])
+    collective_df_tweets = collective_df_tweets[~boolean]
+    ############################################################
+    # final formatting
+    # count # of languages in each cell
+    df_total_tweets = util.count_total_tweets(collective_df_tweets)
+    # count # of occurences for each language in each cell
+    df_language_counts = util.count_language_counts(collective_df_tweets)
+    # flatten language counts for each cell
+    lang_counts = util.flatten_language_counts(df_language_counts)
+    # make df with top10 column with format shown in the ass. spec.
+    df_top10 = util.df_format_top_10(lang_counts)
+    # final output df format
+    df_final = df_total_tweets.merge(df_top10, on='cells_id')
+    df_final.to_csv('./results/output.csv', index=False)
 
-############################################################
-
-
-# final formatting
-# count # of languages in each cell
-df_total_tweets = util.count_total_tweets(collective_df_tweets)
-
-# count # of occurences for each language in each cell
-df_language_counts = util.count_language_counts(collective_df_tweets)
-
-# flatten language counts for each cell
-lang_counts = util.flatten_language_counts(df_language_counts)
-
-# make df with top10 column with format shown in the ass. spec.
-df_top10 = util.df_format_top_10(lang_counts)
-
-# final output df format
-df_final = df_total_tweets.merge(df_top10, on='cells_id')
-df_final.to_csv('./results/output.csv', index=False)
-
-end_time = time.time() - start_time
-print(f'{end_time} secs')
+    end_time = time.time() - start_time
+    print(f'{end_time} secs')
