@@ -8,7 +8,6 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=8
 
-
 echo ' '
 echo 'RUN: 1 node,  8 core'
 
