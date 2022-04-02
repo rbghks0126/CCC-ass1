@@ -1,0 +1,4 @@
+ 
+RUN: 1 node,  1 core
+Helloworld! I am process 0 of 1.
+

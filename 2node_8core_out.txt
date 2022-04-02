@@ -1,0 +1,5 @@
+ 
+RUN: 2 node,  4 cores each
+      0
+a  7.00
+b  3.14
