@@ -91,7 +91,7 @@ def df_format_top_10(lang_counts):
 
 def file_chunks(twitter_data_file_path, process_size):
     chunk_sizes = []
-    with open(args.twitter_data_file_path, 'r', encoding='utf-8') as twitter_data_file_path:
+    with open(twitter_data_file_path, 'r', encoding='utf-8') as twitter_data_file_path:
         file_size= os.path.getsize(twitter_data_file_path)
         per_process = file_size/process_size
         twitter_data_rows=twitter_data_file.readline()
