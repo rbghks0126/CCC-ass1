@@ -3,7 +3,6 @@ from shapely.geometry import shape, MultiPolygon, Point, Polygon
 import geopandas as gpd
 import json
 import pandas as pd
-import ijson
 import util
 import os
 from mpi4py import MPI
@@ -16,21 +15,28 @@ if process_rank == 0:
     start_time = time.time()
 
 twitter_rows = 0
+##### Need to use the arguments to get file path and file name. This feels hardcoded for now.
 twitter_data_file= open('./data/smallTwitter.json', 'r', encoding='utf-8')
 chunk_sizes = []
 if process_rank == 0:
     file_size= os.path.getsize('./data/smallTwitter.json')
     per_process = file_size/process_size
     twitter_data_rows=twitter_data_file.readline()
-    if ',"rows":[\n' in twitter_data_rows:
-        twitter_data_rows = twitter_data_rows.rstrip(',"rows":[\n')
-        twitter_data_rows = twitter_data_rows+'}'
-        twitter_data_rows = json.loads(twitter_data_rows)
-        twitter_rows = int(twitter_data_rows['total_rows'])
-        if 'offset' in twitter_data_rows:
-            twitter_rows = twitter_rows + int(twitter_data_rows['offset'])
-        #twitter_data_rows=ijson.items(f,'total_rows')
-        #twitter_rows = [x for x in twitter_data_rows]
+
+    # This is the code of calculating the number of tweets. Since we are doing things using the byte marker, calculating
+    # the nnumber of rows feel redundant
+
+    #####
+    #if ',"rows":[\n' in twitter_data_rows:
+    #    twitter_data_rows = twitter_data_rows.rstrip(',"rows":[\n')
+    #    twitter_data_rows = twitter_data_rows+'}'
+    #    twitter_data_rows = json.loads(twitter_data_rows)
+    #    twitter_rows = int(twitter_data_rows['total_rows'])
+    #    if 'offset' in twitter_data_rows:
+    #        twitter_rows = twitter_rows + int(twitter_data_rows['offset'])
+    #####
+
+    # Below code could be put in the function.
     for index in range(process_size):
         startindex = twitter_data_file.tell()
         twitter_data_file.seek(startindex+per_process)
@@ -49,24 +55,25 @@ if process_rank == 0:
 # https://datahub.io/core/language-codes
 
 # get code:language mapping dict
+##### need to load the file through the argument.
 lang_map = util.get_language_code_map('./data/language-codes_csv.csv')
 # loading the sydGrid.json file
+##### need to load the file through the argument.
 with open('./data/sydGrid.json', 'r', encoding='utf-8') as f:
     syd_grid = json.load(f)
 
+# This is so that all the process get to the same point in the code before getting the chunk sizes information.
 COMM.Barrier()
+
 chunk_sizes=COMM.scatter(chunk_sizes,root=0)
 collective_df_tweets = pd.DataFrame()
 
 startindex = chunk_sizes['startindex']
 endindex = chunk_sizes['endindex']
-print("start index is ", startindex)
-print("end index is", endindex)
 twitter_data_file.seek(startindex)
 while twitter_data_file.tell() < endindex:
     count = 0
     tweet_data = []
-    print ('startindex is ', startindex, 'and the end index is ', endindex)
     while count < 1000:
         tweet=twitter_data_file.readline()
         #print(tweet)
@@ -136,13 +143,17 @@ while twitter_data_file.tell() < endindex:
     df_tweets = util.matching_grid(df_tweets,syd_grid)
     collective_df_tweets=pd.concat([collective_df_tweets,df_tweets], ignore_index=True)
     #chunk +=1
-print ('results from the process', process_rank, 'are\n ', collective_df_tweets.to_string() )
+
+COMM.Barrier()
+print ('Processing complete at process', process_rank, '. Results from the process', process_rank, 'are\n ', len(collective_df_tweets.index._range) )
 results_from_process = COMM.gather(collective_df_tweets,root=0)
 
 
 if process_rank == 0:
     for result in results_from_process:
         collective_df_tweets = pd.concat([collective_df_tweets,result], ignore_index=True)
+
+    ### this is to check for duplicates on the basis of tweet_id
     boolean = collective_df_tweets.duplicated(subset=['tweet_id'])
     collective_df_tweets = collective_df_tweets[~boolean]
     ############################################################
