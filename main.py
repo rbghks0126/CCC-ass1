@@ -65,7 +65,7 @@ twitter_data_file.seek(startindex)
 while twitter_data_file.tell() < endindex:
     count = 0
     tweet_data = []
-    while count < 1000:
+    while count < args.batch_size:
         tweet=twitter_data_file.readline()
         #print(tweet)
         if tweet[-3:] == ']}\n' or tweet=="":
