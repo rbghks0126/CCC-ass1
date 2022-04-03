@@ -26,25 +26,12 @@ process_rank = COMM.Get_rank()
 if process_rank == 0:
     start_time = time.time()
 
-twitter_rows = 0
-##### Need to use the arguments to get file path and file name. This feels hardcoded for now.
+
 twitter_data_file= open(args.twitter_data_file_path, 'r', encoding='utf-8')
 chunk_sizes = []
+# getting the chunks' byte markers
 if process_rank == 0:
-    file_size= os.path.getsize(args.twitter_data_file_path)
-    per_process = file_size/process_size
-    twitter_data_rows=twitter_data_file.readline()
-
-    # Below code could be put in the function.
-    for index in range(process_size):
-        startindex = twitter_data_file.tell()
-        twitter_data_file.seek(startindex+per_process)
-        twitter_data_file.readline()
-        endindex=twitter_data_file.tell()
-        if endindex > file_size:
-            endindex=file_size
-        chunk_sizes.append({'startindex':startindex,'endindex':endindex})
-        twitter_data_file.readline()
+    chunk_sizes = util.file_chunks(args.twitter_data_file_path, process_size)
 
 
 # Loading the lnaguage codes

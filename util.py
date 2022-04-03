@@ -89,6 +89,22 @@ def flatten_language_counts(df_language_counts):
 def df_format_top_10(lang_counts):
     return pd.DataFrame(lang_counts).T.reset_index().rename(columns={'index': 'cells_id', 0: 'Top 10 languages & tweets'})
 
+def file_chunks(twitter_data_file_path, process_size):
+    chunk_sizes = []
+    with open(args.twitter_data_file_path, 'r', encoding='utf-8') as twitter_data_file_path:
+        file_size= os.path.getsize(twitter_data_file_path)
+        per_process = file_size/process_size
+        twitter_data_rows=twitter_data_file.readline()
+        for index in range(process_size):
+            startindex = twitter_data_file.tell()
+            twitter_data_file.seek(startindex+per_process)
+            twitter_data_file.readline()
+            endindex=twitter_data_file.tell()
+            if endindex > file_size:
+                endindex=file_size
+            chunk_sizes.append({'startindex':startindex,'endindex':endindex})
+            twitter_data_file.readline()
+    return(chunk_sizes)
 
 def matching_grid(df,grid):
     syd_grid_coorindates = []
