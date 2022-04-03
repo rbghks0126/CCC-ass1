@@ -4,13 +4,13 @@ import geopandas as gpd
 import json
 import pandas as pd
 import util
-import os
 from mpi4py import MPI
+import os
 import argparse
 
 
 parser = argparse.ArgumentParser(description='Count the number of languages in a twitter dataset')
-parser.add_argument('--twitter_data_file_path', type=str, default='./bigTwitter.json', help='path to the twitter dataset file in the json format')
+parser.add_argument('--twitter_data_file_path', type=str, default='./smallTwitter.json', help='path to the twitter dataset file in the json format')
 parser.add_argument('--grid_file_path', type=str, default='./data/sydGrid.json', help='path to the grid file which contains the grid information')
 parser.add_argument('--language_file', type=str, default='./data/language-codes_csv.csv', help='path to the language codes file which contains the information about different language codes')
 parser.add_argument('--batch_size', type=int, default=1000, help='Number of tweets that a subprocesses handles at a time')
@@ -25,13 +25,15 @@ process_rank = COMM.Get_rank()
 # time
 if process_rank == 0:
     start_time = time.time()
+twitter_data_file_path=args.twitter_data_file_path
 
+twitter_data_file= open(twitter_data_file_path, 'r', encoding='utf-8')
+file_size= os.path.getsize(twitter_data_file_path)
 
-twitter_data_file= open(args.twitter_data_file_path, 'r', encoding='utf-8')
 chunk_sizes = []
 # getting the chunks' byte markers
 if process_rank == 0:
-    chunk_sizes = util.file_chunks(args.twitter_data_file_path, process_size)
+    chunk_sizes = util.file_chunks(twitter_data_file_path, process_size, file_size)
 
 
 # Loading the lnaguage codes

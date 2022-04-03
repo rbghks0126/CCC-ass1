@@ -89,10 +89,9 @@ def flatten_language_counts(df_language_counts):
 def df_format_top_10(lang_counts):
     return pd.DataFrame(lang_counts).T.reset_index().rename(columns={'index': 'cells_id', 0: 'Top 10 languages & tweets'})
 
-def file_chunks(twitter_data_file_path, process_size):
+def file_chunks(twitter_data_file_path, process_size, file_size):
     chunk_sizes = []
     with open(twitter_data_file_path, 'r', encoding='utf-8') as twitter_data_file_path:
-        file_size= os.path.getsize(twitter_data_file_path)
         per_process = file_size/process_size
         twitter_data_rows=twitter_data_file.readline()
         for index in range(process_size):
