@@ -28,12 +28,11 @@ if process_rank == 0:
 twitter_data_file_path=args.twitter_data_file_path
 
 twitter_data_file= open(twitter_data_file_path, 'r', encoding='utf-8')
-file_size= os.path.getsize(twitter_data_file_path)
 
 chunk_sizes = []
 # getting the chunks' byte markers
 if process_rank == 0:
-    chunk_sizes = util.file_chunks(twitter_data_file_path, process_size, file_size)
+    chunk_sizes = util.file_chunks(twitter_data_file_path, process_size)
 
 
 # Loading the lnaguage codes
