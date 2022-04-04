@@ -10,8 +10,11 @@
 
 echo ' '
 echo 'RUN: 1 node,  8 core'
-
+START_TIME=$SECONDS
 module load foss/2020b
 module load scipy-bundle/2020.11-python-3.8.6
 
-mpirun python3 main.py --twitter_data_file_path='./bigTwitter.json' --grid_file_path='./data/sydGrid.json' --language_file='./data/language-codes_csv.csv' --batch_size=1000 --out_file='./results/output-1node_8core.csv'
+mpirun python3 main.py --twitter_data_file_path='./bigTwitter.json' --grid_file_path='./data/sydGrid.json' --language_file='./data/language-codes_csv.csv' --batch_size=1000 --out_directory='./results' --slrum-script=$0
+
+ELAPSED_TIME=$(($SECONDS - $START_TIME))
+sed "${s/$/$ELAPSED_TIME/}" ./results/1node_8core_timings.txt 

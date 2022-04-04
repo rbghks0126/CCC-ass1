@@ -5,7 +5,6 @@ import json
 import pandas as pd
 import util
 from mpi4py import MPI
-import os
 import argparse
 
 
@@ -14,9 +13,9 @@ parser.add_argument('--twitter_data_file_path', type=str, default='./smallTwitte
 parser.add_argument('--grid_file_path', type=str, default='./data/sydGrid.json', help='path to the grid file which contains the grid information')
 parser.add_argument('--language_file', type=str, default='./data/language-codes_csv.csv', help='path to the language codes file which contains the information about different language codes')
 parser.add_argument('--batch_size', type=int, default=1000, help='Number of tweets that a subprocesses handles at a time')
-parser.add_argument('--out_file', type=str, default='./results/output.csv', help='the file name for the results along with the path')
+parser.add_argument('--out_directory', type=str, default='./results', help='the directory for the result file')
+parser.add_argument('--slrum-script', type=str, default='1node_1core.slrum',choices={"1node_1core.slrum","1node_8core.slrum","2node_8core.slrum"}, help='information about the calling script')
 args = parser.parse_args()
-
 
 
 COMM = MPI.COMM_WORLD
@@ -112,7 +111,13 @@ if process_rank == 0:
     df_top10 = util.df_format_top_10(lang_counts)
     # final output df format
     df_final = df_total_tweets.merge(df_top10, on='cells_id')
-    df_final.to_csv(args.out_file, index=False)
 
-    end_time = time.time() - start_time
-    print(f'{end_time} secs')
+    output_directory = args.out_directory.rstrip('/')
+    slrum_script=args.slrum_script.rstring('.slrum')
+    output_file= output_directory+'/'+'output-'+slrum_script+'-'+str(args.batch_size)+'.csv'
+    df_final.to_csv(output_file, index=False)
+    timing_file=output_directory+'/'+slrum_script+'_timings.txt'
+    with open(timing_file, 'a+') as timing:
+        end_time = time.time() - start_time
+        write_string = "\n "+str(args.batch_size)+"\t"+str(end_time)+"secs"
+        timing.write(write_string)
